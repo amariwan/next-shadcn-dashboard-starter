@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { UserAvatarProfile } from '@/components/user-avatar-profile';
+import { OrgSwitcher } from '@/features/organizations/components/org-switcher';
 import { navGroups } from '@/config/nav-config';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
@@ -49,6 +50,9 @@ export default function AppSidebar() {
     <Sidebar collapsible='icon'>
       <SidebarHeader className='group-data-[collapsible=icon]:pt-4'>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <OrgSwitcher />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton size='lg' asChild>
               <Link href='/dashboard/overview'>

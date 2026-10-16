@@ -29,6 +29,15 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
+        title: 'Workspaces',
+        url: '/dashboard/workspaces',
+        icon: 'building',
+        shortcut: ['w', 'w'],
+        isActive: false,
+        items: [],
+        access: { feature: 'orgs' }
+      },
+      {
         title: 'Kanban',
         url: '/dashboard/kanban',
         icon: 'kanban',

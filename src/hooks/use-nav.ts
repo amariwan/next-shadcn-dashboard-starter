@@ -1,15 +1,29 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { NavItem, NavGroup } from '@/types';
+import { orgsEnabled } from '@/lib/orgs';
+import { activeOrgQueryOptions } from '@/features/organizations/api/queries';
 
 /**
- * Hook to filter navigation items based on simple RBAC
+ * Hook to filter navigation items based on simple RBAC.
+ *
+ * - `access.feature === 'orgs'` items only show when the optional
+ *   Orgs/Teams feature is enabled (NEXT_PUBLIC_ORGS_ENABLED).
+ * - `access.requireOrg` items only show when the user belongs to ≥1 org.
+ * - `access.role` is UI-only; real enforcement is server-side.
  *
  * For actual security (API routes, server actions), always use server-side checks.
  * This is only for UI visibility.
  */
 export function useFilteredNavItems(items: NavItem[]) {
+  const { data: orgState } = useQuery({
+    ...activeOrgQueryOptions(),
+    enabled: orgsEnabled
+  });
+  const hasOrg = (orgState?.organizations.length ?? 0) > 0;
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       // No access restrictions
@@ -17,20 +31,20 @@ export function useFilteredNavItems(items: NavItem[]) {
         return true;
       }
 
-      // For requireOrg checks, always show (no org system anymore)
-      if (item.access.requireOrg) {
-        return true;
+      // Optional Orgs feature gate
+      if (item.access.feature === 'orgs' && !orgsEnabled) {
+        return false;
       }
 
-      // Check role
-      if (item.access.role) {
-        return true;
+      // Only show once the user belongs to an organization
+      if (item.access.requireOrg && orgsEnabled && !hasOrg) {
+        return false;
       }
 
-      // Plan/feature checks removed (no longer supported)
+      // Role checks are UI hints only — server guards enforce.
       return true;
     });
-  }, [items]);
+  }, [items, hasOrg]);
 
   return filteredItems;
 }

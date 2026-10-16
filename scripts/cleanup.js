@@ -287,9 +287,73 @@ export const productInfoContent: InfobarContent = {
 };
 `
   },
+  orgs: {
+    'src/hooks/use-nav.ts': `'use client';
+
+import { useMemo } from 'react';
+import type { NavItem, NavGroup } from '@/types';
+
+export function useFilteredNavItems(items: NavItem[]) {
+  return useMemo(() => items.filter((item) => !item.access?.requireOrg), [items]);
+}
+
+export function useFilteredNavGroups(groups: NavGroup[]) {
+  const allItems = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  const filteredItems = useFilteredNavItems(allItems);
+
+  return useMemo(() => {
+    const filteredSet = new Set(filteredItems.map((item) => item.title));
+    return groups
+      .map((group) => ({
+        ...group,
+        items: filteredItems.filter((item) =>
+          group.items.some((gi) => gi.title === item.title && filteredSet.has(gi.title))
+        )
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groups, filteredItems]);
+}
+`,
+    'src/lib/auth/guard.ts': `import { auth } from '.';
+import { redirect } from 'next/navigation';
+
+export async function requireAuth() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    redirect('/auth/sign-in');
+  }
+  return session;
+}
+
+export async function requireRole(role: 'admin' | 'user') {
+  const session = await auth();
+  if (!session?.user || session.user.role !== role) {
+    redirect('/auth/sign-in');
+  }
+  return session;
+}
+`,
+    'src/types/auth.ts': `declare module 'next-auth' {
+  interface User {
+    role: string;
+  }
+
+  interface Session {
+    user: {
+      role: string;
+    };
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    role: string;
+  }
+}
+`
+  },
   sentry: {
     'next.config.ts': `import type { NextConfig } from 'next';
-
 const nextConfig: NextConfig = {
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   images: {
@@ -487,6 +551,19 @@ export const config = {
     dependencies: [],
     navItemsToRemove: ['/dashboard/notifications']
   },
+  orgs: {
+    name: 'Orgs/Teams (Workspaces, members, invites)',
+    folders: [
+      'src/app/dashboard/workspaces',
+      'src/app/api/organizations',
+      'src/features/organizations'
+    ],
+    files: ['src/lib/orgs.ts', 'src/lib/auth/organization.ts'],
+    dependencies: [],
+    envVars: ['NEXT_PUBLIC_ORGS_ENABLED'],
+    navItemsToRemove: ['/dashboard/workspaces'],
+    templates: TEMPLATES.orgs
+  },
   examples: {
     name: 'Examples (Forms, React Query demo, Icons)',
     folders: [
@@ -625,6 +702,13 @@ class FeatureCleanup {
     if (this.featuresToRemove.includes('notifications')) {
       this.cleanNotificationFromHeader();
       this.cleanNotificationFromSidebar();
+    }
+
+    if (this.featuresToRemove.includes('orgs')) {
+      this.cleanOrgSwitcherFromSidebar();
+      console.log(
+        '  ℹ️  Note: organization tables remain in the database (migrations are never deleted).'
+      );
     }
 
     if (this.dryRun) {
@@ -870,6 +954,28 @@ class FeatureCleanup {
     if (content !== before) {
       if (!this.dryRun) fs.writeFileSync(sidebarPath, content, 'utf8');
       this.log('✅ Cleaned app-sidebar.tsx (removed Notifications menu item)');
+    }
+  }
+
+  cleanOrgSwitcherFromSidebar() {
+    const sidebarPath = path.join(ROOT, 'src/components/layout/app-sidebar.tsx');
+    if (!fs.existsSync(sidebarPath)) return;
+
+    let content = fs.readFileSync(sidebarPath, 'utf8');
+    const before = content;
+
+    content = content.replace(
+      /import\s*\{[^}]*OrgSwitcher[^}]*\}\s*from\s*['"][^'"]*org-switcher['"];\n?/g,
+      ''
+    );
+    content = content.replace(
+      /\s*<SidebarMenuItem>\s*<OrgSwitcher\s*\/>\s*<\/SidebarMenuItem>/g,
+      ''
+    );
+
+    if (content !== before) {
+      if (!this.dryRun) fs.writeFileSync(sidebarPath, content, 'utf8');
+      this.log('✅ Cleaned app-sidebar.tsx (removed OrgSwitcher)');
     }
   }
 
