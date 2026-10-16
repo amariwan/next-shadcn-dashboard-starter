@@ -3,6 +3,7 @@
 import { hash } from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { randomBytes } from 'crypto';
 import path from 'path';
 
 function getDbUrl(): string {
@@ -49,5 +50,40 @@ export async function signUp(email: string, password: string, name: string) {
     // ignore — user can create a workspace later
   }
 
+  // Send email verification (dev: logs link to console).
+  try {
+    await requestEmailVerification({ userId: user.id, email: user.email });
+  } catch {
+    // ignore — user can verify later
+  }
+
   return { success: true, userId: user.id };
+}
+
+export async function requestEmailVerification({
+  userId,
+  email
+}: {
+  userId: string;
+  email: string;
+}) {
+  const prisma = getPrisma();
+  // Delete any existing verification tokens for this email
+  await prisma.verificationToken.deleteMany({
+    where: { identifier: `verify-${email}`, token: { contains: 'verify-' } }
+  });
+
+  const token = `verify-${randomBytes(32).toString('hex')}`;
+  await prisma.verificationToken.create({
+    data: {
+      identifier: `verify-${email}`,
+      token,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+    }
+  });
+
+  const verifyUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/verify-email/${token}`;
+  console.log(`[Email Verification] ${email}: ${verifyUrl}`);
+
+  return { success: true, verifyUrl };
 }
