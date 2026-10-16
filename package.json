@@ -7,8 +7,9 @@
     "url": "https://github.com/amariwan"
   },
   "scripts": {
-    "dev": "node scripts/postinstall.js 2>/dev/null; next dev",
-    "build": "next build",
+    "postinstall": "prisma generate",
+    "dev": "prisma generate 2>/dev/null; node scripts/postinstall.js 2>/dev/null; next dev",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix && bun format",
