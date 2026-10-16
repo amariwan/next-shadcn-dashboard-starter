@@ -1,0 +1,52 @@
+# Development stack: Next.js app + Postgres (optional, for teams that want
+# Postgres instead of SQLite in local development).
+#
+# Start: docker compose up -d
+# Stop:  docker compose down
+#
+# The app uses Prisma with SQLite by default. Point DATABASE_URL at the
+# Postgres service and run `bunx prisma migrate deploy` to switch.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/dashboard?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-secret-change-me}
+      - NEXTAUTH_URL=http://localhost:3000
+      - AUTH_URL=http://localhost:3000
+      - AUTH_TRUST_HOST=true
+      - NEXT_PUBLIC_SENTRY_DISABLED=true
+      - NEXT_PUBLIC_ORGS_ENABLED=true
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: bun run dev
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=dashboard
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
