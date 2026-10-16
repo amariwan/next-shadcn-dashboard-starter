@@ -3,11 +3,33 @@ import type { Adapter } from '@auth/core/adapters';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import NextAuth from 'next-auth';
 
+import path from 'path';
+
 async function getAuthConfig(): Promise<any> {
-  const dbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
+  const rawDbUrl = process.env.DATABASE_URL || 'file:./prisma/dev.db';
+
+  // Normalize relative SQLite file paths to absolute paths so the libsql
+  // adapter resolves them consistently regardless of the working directory.
+  let dbUrl = rawDbUrl;
+  if (dbUrl.startsWith('file:')) {
+    const filePath = dbUrl.slice('file:'.length);
+    if (filePath && !path.isAbsolute(filePath)) {
+      dbUrl = `file:${path.resolve(process.cwd(), filePath)}`;
+    }
+  }
+
+  // libsql (SQLite/Turso) URLs are all served by the Prisma libsql adapter,
+  // including local `file:` paths, remote `libsql:` endpoints and HTTP(S)
+  // endpoints exposed by Turso/libSQL.
+  const isLibSqlUrl =
+    dbUrl.startsWith('file:') ||
+    dbUrl.startsWith('libsql:') ||
+    dbUrl.startsWith('https:') ||
+    dbUrl.startsWith('http:');
+
   let adapter: Adapter;
 
-  if (dbUrl.startsWith('file:')) {
+  if (isLibSqlUrl) {
     const { PrismaLibSql } = await import('@prisma/adapter-libsql');
     adapter = new PrismaLibSql({ url: dbUrl }) as any;
   } else {
