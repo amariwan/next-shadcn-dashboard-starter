@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { getCommonPinningStyles } from '@/lib/data-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { useTranslations } from 'next-intl';
 
 interface DataTableProps<TData> extends React.ComponentProps<'div'> {
   table: TanstackTable<TData>;
@@ -19,6 +20,8 @@ interface DataTableProps<TData> extends React.ComponentProps<'div'> {
 }
 
 export function DataTable<TData>({ table, actionBar, children }: DataTableProps<TData>) {
+  const t = useTranslations('common');
+
   return (
     <div className='flex flex-1 flex-col space-y-4'>
       {children}
@@ -64,7 +67,7 @@ export function DataTable<TData>({ table, actionBar, children }: DataTableProps<
                 ) : (
                   <TableRow>
                     <TableCell colSpan={table.getAllColumns().length} className='h-24 text-center'>
-                      No results.
+                      {t('empty.noResultsFound')}
                     </TableCell>
                   </TableRow>
                 )}

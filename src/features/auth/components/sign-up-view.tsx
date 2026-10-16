@@ -7,13 +7,13 @@ import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { GitHubLogoIcon } from '@radix-ui/react-icons';
 import { Metadata } from 'next';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth/client';
 import { signUp } from '@/features/auth/actions';
 import { z } from 'zod';
 import { InteractiveGridPattern } from './interactive-grid';
+import { useTranslations } from 'next-intl';
 
 export const metadata: Metadata = {
   title: 'Authentication',
@@ -34,6 +34,8 @@ export default function SignUpViewPage() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const t = useTranslations('auth');
+  const tProfile = useTranslations('profile');
 
   async function startTransition(cb: () => Promise<void>) {
     setIsPending(true);
@@ -78,13 +80,13 @@ export default function SignUpViewPage() {
   return (
     <div className='relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <Link
-        href='/examples/authentication'
+        href='/auth/sign-up'
         className={cn(
           buttonVariants({ variant: 'ghost' }),
           'absolute top-4 right-4 hidden md:top-8 md:right-8'
         )}
       >
-        Sign Up
+        {t('signUp')}
       </Link>
       <div className='relative hidden h-full flex-col p-10 lg:flex dark:border-r'>
         <div className='absolute inset-0 bg-sidebar' />
@@ -121,23 +123,24 @@ export default function SignUpViewPage() {
       </div>
       <div className='flex h-full items-center justify-center p-4 lg:p-8'>
         <div className='flex w-full max-w-md flex-col items-center justify-center space-y-6'>
-          <Link
+          <a
             className='inline-flex hover:text-yellow-200'
             target='_blank'
+            rel='noopener noreferrer'
             href={'https://github.com/amariwan/next-shadcn-dashboard-starter'}
           >
             <div className='flex items-center'>
               <GitHubLogoIcon className='size-4' />
               <span className='ml-1 inline'>Star on GitHub</span>{' '}
             </div>
-          </Link>
+          </a>
           <form onSubmit={onSubmit} className='space-y-4 w-full'>
             <div className='space-y-2'>
-              <Label htmlFor='name'>Name</Label>
-              <Input id='name' name='name' required placeholder='John Doe' />
+              <Label htmlFor='name'>{tProfile('name')}</Label>
+              <Input id='name' name='name' required placeholder={tProfile('namePlaceholder')} />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='email'>Email</Label>
+              <Label htmlFor='email'>{t('email')}</Label>
               <Input
                 id='email'
                 name='email'
@@ -147,7 +150,7 @@ export default function SignUpViewPage() {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='password'>Password</Label>
+              <Label htmlFor='password'>{t('password')}</Label>
               <Input
                 id='password'
                 name='password'
@@ -156,7 +159,7 @@ export default function SignUpViewPage() {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='confirmPassword'>Confirm Password</Label>
+              <Label htmlFor='confirmPassword'>{t('confirmNewPassword')}</Label>
               <Input
                 id='confirmPassword'
                 name='confirmPassword'
@@ -168,7 +171,7 @@ export default function SignUpViewPage() {
               <p className='text-destructive text-sm text-center'>{error}</p>
             )}
             <Button type='submit' className='w-full' disabled={isPending}>
-              Sign Up
+              {t('signUp')}
             </Button>
           </form>
           <div className='text-muted-foreground space-y-2 px-8 text-center text-xs'>
@@ -180,13 +183,14 @@ export default function SignUpViewPage() {
               for demo purposes. Authentication is handled locally with Auth.js.
             </p>
             <p>
-              <Link
+              <a
                 href='https://github.com/amariwan/next-shadcn-dashboard-starter'
                 target='_blank'
+                rel='noopener noreferrer'
                 className='hover:text-primary underline underline-offset-4'
               >
                 View on GitHub
-              </Link>
+              </a>
             </p>
           </div>
           <p className='text-muted-foreground px-8 text-center text-sm'>
@@ -207,9 +211,9 @@ export default function SignUpViewPage() {
             .
           </p>
           <p className='text-center text-sm'>
-            Already have an account?{' '}
+            {t('alreadyHaveAccount')}{' '}
             <Link href='/auth/sign-in' className='text-primary underline underline-offset-4'>
-              Sign in
+              {t('signIn')}
             </Link>
           </p>
         </div>

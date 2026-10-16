@@ -41,7 +41,13 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table';
-import type { OrgRole } from '@/lib/auth/organization';
+import {
+  hasOrgPermission,
+  canAssignRole,
+  canRemoveMember,
+  canInviteRole,
+  type OrgRole
+} from '@/lib/auth/rbac';
 import {
   organizationDetailOptions,
   organizationInvitationsOptions,
@@ -59,6 +65,7 @@ import {
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const ROLE_OPTIONS: OrgRole[] = ['member', 'admin', 'owner'];
 
@@ -89,13 +96,23 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function InviteDialog({ orgId, canManage }: { orgId: string; canManage: boolean }) {
+function InviteDialog({
+  orgId,
+  canManage,
+  actorRole
+}: {
+  orgId: string;
+  canManage: boolean;
+  actorRole: OrgRole;
+}) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<OrgRole>('member');
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
+
+  const allowedRoles = ROLE_OPTIONS.filter((r) => canInviteRole(actorRole, r));
 
   const mutation = useMutation({
     mutationFn: () => inviteMember(orgId, email.trim(), role),
@@ -105,8 +122,12 @@ function InviteDialog({ orgId, canManage }: { orgId: string; canManage: boolean 
       });
       setInviteUrl(data.inviteUrl);
       setError('');
+      toast.success('Invitation link created');
     },
-    onError: (e: Error) => setError(e.message)
+    onError: (e: Error) => {
+      setError(e.message);
+      toast.error(e.message);
+    }
   });
 
   if (!canManage) return null;
@@ -119,6 +140,8 @@ function InviteDialog({ orgId, canManage }: { orgId: string; canManage: boolean 
         if (!v) {
           setInviteUrl(null);
           setError('');
+          setEmail('');
+          setRole('member');
         }
       }}
     >
@@ -159,7 +182,7 @@ function InviteDialog({ orgId, canManage }: { orgId: string; canManage: boolean 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {ROLE_OPTIONS.map((r) => (
+                  {allowedRoles.map((r) => (
                     <SelectItem key={r} value={r} className='capitalize'>
                       {r}
                     </SelectItem>
@@ -182,41 +205,59 @@ function InviteDialog({ orgId, canManage }: { orgId: string; canManage: boolean 
   );
 }
 
-function DangerZone({ orgId, orgName, role }: { orgId: string; orgName: string; role: OrgRole }) {
+function DangerZone({
+  orgId,
+  orgName,
+  role,
+  ownerCount
+}: {
+  orgId: string;
+  orgName: string;
+  role: OrgRole;
+  ownerCount: number;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [name, setName] = useState(orgName);
-  const canManage = role === 'owner' || role === 'admin';
+  const canUpdate = hasOrgPermission(role, 'organization.update');
+  const canDelete = hasOrgPermission(role, 'organization.delete');
+  const isSoleOwner = role === 'owner' && ownerCount <= 1;
 
   const rename = useMutation({
     mutationFn: (next: string) => renameOrganization(orgId, next),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: organizationKeys.all });
+      toast.success('Workspace renamed');
       router.refresh();
-    }
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
 
   const leave = useMutation({
     mutationFn: () => removeMember(orgId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: organizationKeys.all });
+      toast.success('Left workspace');
       router.push('/dashboard/workspaces');
       router.refresh();
-    }
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
 
   const remove = useMutation({
     mutationFn: () => deleteOrganization(orgId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: organizationKeys.all });
+      toast.success('Workspace deleted');
       router.push('/dashboard/workspaces');
       router.refresh();
-    }
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
 
   return (
     <div className='grid gap-4 lg:grid-cols-2'>
-      {canManage && (
+      {canUpdate && (
         <Card>
           <CardHeader>
             <CardTitle className='text-base'>Rename workspace</CardTitle>
@@ -239,13 +280,13 @@ function DangerZone({ orgId, orgName, role }: { orgId: string; orgName: string; 
         <CardHeader>
           <CardTitle className='text-base'>Danger zone</CardTitle>
           <CardDescription>
-            {role === 'owner'
+            {canDelete
               ? 'Owners can delete the workspace for everyone.'
               : 'You can leave this workspace at any time.'}
           </CardDescription>
         </CardHeader>
         <CardContent className='flex gap-2'>
-          {role !== 'owner' && (
+          {!isSoleOwner && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant='outline'>Leave workspace</Button>
@@ -264,7 +305,12 @@ function DangerZone({ orgId, orgName, role }: { orgId: string; orgName: string; 
               </AlertDialogContent>
             </AlertDialog>
           )}
-          {role === 'owner' && (
+          {isSoleOwner && (
+            <p className='text-muted-foreground text-xs'>
+              As the only owner, you cannot leave. Delete the workspace or promote another member to owner first.
+            </p>
+          )}
+          {canDelete && (
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant='destructive'>
@@ -298,32 +344,58 @@ export function WorkspaceDetail({ orgId }: { orgId: string }) {
   const { data: membersData } = useSuspenseQuery(organizationMembersOptions(orgId));
 
   const org = detail.organization;
-  const canManage = org.role === 'owner' || org.role === 'admin';
-  // Invites endpoint requires admin — only managers fetch it.
+  const canManageRoles = hasOrgPermission(org.role, 'roles.manage');
+  const canManageMembers = hasOrgPermission(org.role, 'members.manage');
+  const canManageInvites = hasOrgPermission(org.role, 'invitations.manage');
+  const canReadInvites = hasOrgPermission(org.role, 'invitations.read');
+
+  const ownerCount = membersData.members.filter((m) => m.role === 'owner').length;
+
   const { data: invitesData } = useQuery({
     ...organizationInvitationsOptions(orgId),
-    enabled: canManage
+    enabled: canReadInvites
   });
-  const invalidateMembers = () =>
+
+  const invalidateMembers = () => {
     queryClient.invalidateQueries({
       queryKey: organizationKeys.members(orgId)
     });
+    queryClient.invalidateQueries({
+      queryKey: organizationKeys.active()
+    });
+    queryClient.invalidateQueries({
+      queryKey: organizationKeys.detail(orgId)
+    });
+  };
 
   const roleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: OrgRole }) =>
       updateMemberRole(orgId, userId, role),
-    onSuccess: invalidateMembers
+    onSuccess: () => {
+      invalidateMembers();
+      toast.success('Member role updated');
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
+
   const removeMutation = useMutation({
     mutationFn: (userId: string) => removeMember(orgId, userId),
-    onSuccess: invalidateMembers
+    onSuccess: () => {
+      invalidateMembers();
+      toast.success('Member removed');
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
+
   const revokeMutation = useMutation({
     mutationFn: (invitationId: string) => revokeInvitation(orgId, invitationId),
-    onSuccess: () =>
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: organizationKeys.invitations(orgId)
-      })
+      });
+      toast.success('Invitation revoked');
+    },
+    onError: (e: Error) => toast.error(e.message)
   });
 
   return (
@@ -343,7 +415,7 @@ export function WorkspaceDetail({ orgId }: { orgId: string }) {
             {org.role}
           </Badge>
         </div>
-        <InviteDialog orgId={orgId} canManage={canManage} />
+        <InviteDialog orgId={orgId} canManage={canManageInvites} actorRole={org.role} />
       </div>
 
       <Card>
@@ -360,58 +432,85 @@ export function WorkspaceDetail({ orgId }: { orgId: string }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {membersData.members.map((m) => (
-                <TableRow key={m.userId}>
-                  <TableCell>
-                    <div className='font-medium'>{m.name ?? '—'}</div>
-                    <div className='text-muted-foreground text-xs'>{m.email}</div>
-                  </TableCell>
-                  <TableCell>
-                    {canManage ? (
-                      <Select
-                        value={m.role}
-                        disabled={roleMutation.isPending}
-                        onValueChange={(v) =>
-                          roleMutation.mutate({ userId: m.userId, role: v as OrgRole })
-                        }
-                      >
-                        <SelectTrigger className='w-32 capitalize'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLE_OPTIONS.map((r) => (
-                            <SelectItem key={r} value={r} className='capitalize'>
-                              {r}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <Badge variant='outline' className='capitalize'>
-                        {m.role}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className='text-right'>
-                    {canManage && (
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        disabled={removeMutation.isPending}
-                        onClick={() => removeMutation.mutate(m.userId)}
-                      >
-                        <Icons.trash className='h-4 w-4' />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {membersData.members.map((m) => {
+                const isTargetOwner = m.role === 'owner';
+                const isLastOwner = isTargetOwner && ownerCount <= 1;
+
+                // Check if actor has permission and authority to change this member's role
+                const canModifyThisTarget =
+                  canManageRoles &&
+                  (org.role === 'owner' || m.role !== 'owner') &&
+                  !isLastOwner;
+
+                const assignableRoles = ROLE_OPTIONS.filter((r) =>
+                  canAssignRole(org.role, m.role, r)
+                );
+
+                // Check if actor can remove this member
+                const canRemoveThisTarget =
+                  canManageMembers &&
+                  canRemoveMember(org.role, m.role, false) &&
+                  !isLastOwner;
+
+                return (
+                  <TableRow key={m.userId}>
+                    <TableCell>
+                      <div className='font-medium'>{m.name ?? '—'}</div>
+                      <div className='text-muted-foreground text-xs'>{m.email}</div>
+                    </TableCell>
+                    <TableCell>
+                      {canModifyThisTarget && assignableRoles.length > 0 ? (
+                        <Select
+                          value={m.role}
+                          disabled={roleMutation.isPending}
+                          onValueChange={(v) =>
+                            roleMutation.mutate({ userId: m.userId, role: v as OrgRole })
+                          }
+                        >
+                          <SelectTrigger className='w-32 capitalize'>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignableRoles.map((r) => (
+                              <SelectItem key={r} value={r} className='capitalize'>
+                                {r}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className='flex items-center gap-1.5'>
+                          <Badge variant='outline' className='capitalize'>
+                            {m.role}
+                          </Badge>
+                          {isLastOwner && (
+                            <span className='text-muted-foreground text-[10px]'>(Sole owner)</span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className='text-right'>
+                      {canRemoveThisTarget && (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          disabled={removeMutation.isPending}
+                          onClick={() => removeMutation.mutate(m.userId)}
+                          title='Remove member'
+                        >
+                          <Icons.trash className='h-4 w-4' />
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {canManage && (invitesData?.invitations.length ?? 0) > 0 && (
+      {canReadInvites && (invitesData?.invitations.length ?? 0) > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className='text-base'>Pending invites</CardTitle>
@@ -435,14 +534,16 @@ export function WorkspaceDetail({ orgId }: { orgId: string }) {
                       {new Date(inv.expiresAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className='text-right'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        disabled={revokeMutation.isPending}
-                        onClick={() => revokeMutation.mutate(inv.id)}
-                      >
-                        Revoke
-                      </Button>
+                      {canManageInvites && (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          disabled={revokeMutation.isPending}
+                          onClick={() => revokeMutation.mutate(inv.id)}
+                        >
+                          Revoke
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -452,7 +553,12 @@ export function WorkspaceDetail({ orgId }: { orgId: string }) {
         </Card>
       )}
 
-      <DangerZone orgId={orgId} orgName={org.name} role={org.role} />
+      <DangerZone
+        orgId={orgId}
+        orgName={org.name}
+        role={org.role}
+        ownerCount={ownerCount}
+      />
     </div>
   );
 }

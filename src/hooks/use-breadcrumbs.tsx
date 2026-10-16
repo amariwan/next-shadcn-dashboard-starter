@@ -1,46 +1,49 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 
-type BreadcrumbItem = {
+export type BreadcrumbItem = {
   title: string;
   link: string;
 };
 
-// This allows to add custom title as well
-const routeMapping: Record<string, BreadcrumbItem[]> = {
-  '/dashboard': [{ title: 'Dashboard', link: '/dashboard' }],
-  '/dashboard/employee': [
-    { title: 'Dashboard', link: '/dashboard' },
-    { title: 'Employee', link: '/dashboard/employee' }
-  ],
-  '/dashboard/product': [
-    { title: 'Dashboard', link: '/dashboard' },
-    { title: 'Product', link: '/dashboard/product' }
-  ]
-  // Add more custom mappings as needed
-};
-
 export function useBreadcrumbs() {
   const pathname = usePathname();
+  const t = useTranslations('nav');
 
   const breadcrumbs = useMemo(() => {
-    // Check if we have a custom mapping for this exact path
-    if (routeMapping[pathname]) {
-      return routeMapping[pathname];
-    }
+    const segmentLabels: Record<string, string> = {
+      dashboard: t('dashboard'),
+      overview: t('overview'),
+      product: t('product'),
+      users: t('users'),
+      workspaces: t('workspaces'),
+      'audit-log': t('auditLog'),
+      kanban: t('kanban'),
+      chat: t('chat'),
+      notifications: t('notifications'),
+      forms: t('forms'),
+      elements: t('elements'),
+      icons: t('icons'),
+      profile: t('profile'),
+      account: t('account'),
+      billing: t('billing')
+    };
 
-    // If no exact match, fall back to generating breadcrumbs from the path
     const segments = pathname.split('/').filter(Boolean);
     return segments.map((segment, index) => {
       const path = `/${segments.slice(0, index + 1).join('/')}`;
+      const title =
+        segmentLabels[segment.toLowerCase()] ||
+        segment.charAt(0).toUpperCase() + segment.slice(1);
       return {
-        title: segment.charAt(0).toUpperCase() + segment.slice(1),
+        title,
         link: path
       };
     });
-  }, [pathname]);
+  }, [pathname, t]);
 
   return breadcrumbs;
 }

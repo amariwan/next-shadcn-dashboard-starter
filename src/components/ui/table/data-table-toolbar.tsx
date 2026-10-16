@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Cross2Icon } from '@radix-ui/react-icons';
+import { useTranslations } from 'next-intl';
 
 interface DataTableToolbarProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>;
@@ -22,6 +23,7 @@ export function DataTableToolbar<TData>({
   className,
   ...props
 }: DataTableToolbarProps<TData>) {
+  const tCommon = useTranslations('common');
   const isFiltered = table.getState().columnFilters.length > 0;
 
   const columns = React.useMemo(
@@ -46,14 +48,14 @@ export function DataTableToolbar<TData>({
         ))}
         {isFiltered && (
           <Button
-            aria-label='Reset filters'
+            aria-label={tCommon('actions.reset')}
             variant='outline'
             size='sm'
             className='border-dashed'
             onClick={onReset}
           >
             <Cross2Icon />
-            Reset
+            {tCommon('actions.reset')}
           </Button>
         )}
       </div>

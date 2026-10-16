@@ -30,6 +30,7 @@ import {
   IconCommand,
   IconCopy,
   IconCreditCard,
+  IconCurrencyDollar,
   IconDeviceLaptop,
   IconDots,
   IconDotsVertical,
@@ -47,6 +48,7 @@ import {
   IconHelpCircle,
   IconInfoCircle,
   IconItalic,
+  IconLanguage,
   IconLayoutDashboard,
   IconLayoutKanban,
   IconLayoutSidebar,
@@ -64,6 +66,7 @@ import {
   IconPhoto,
   IconPizza,
   IconPlus,
+  IconRefresh,
   IconProps,
   IconRosetteDiscountCheck,
   IconSearch,
@@ -111,7 +114,10 @@ export const Icons = {
   externalLink: IconExternalLink,
   help: IconHelpCircle,
   info: IconInfoCircle,
+  language: IconLanguage,
+  globe: IconLanguage,
   spinner: IconLoader2,
+  refresh: IconRefresh,
   search: IconSearch,
   settings: IconSettings,
   trash: IconTrash,
@@ -140,6 +146,7 @@ export const Icons = {
   userPen: IconUserEdit,
   userPlus: IconUserPlus,
   teams: IconUsers,
+  users: IconUsers,
   building: IconBuilding,
 
   // Brand
@@ -191,6 +198,7 @@ export const Icons = {
 
   // Commerce / Plans
   billing: IconCreditCard,
+  dollarSign: IconCurrencyDollar,
   creditCard: IconCreditCard,
   product: IconBox,
   pro: IconCrown,

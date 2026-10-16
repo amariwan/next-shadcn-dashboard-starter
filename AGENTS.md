@@ -718,6 +718,7 @@ See "Theming System" section above or `docs/themes.md`.
 - [Tailwind CSS v4](https://tailwindcss.com/docs)
 - [TanStack Table](https://tanstack.com/table/latest)
 - [Sentry Next.js](https://docs.sentry.io/platforms/javascript/guides/nextjs/)
+- [Awesome React Components & Libraries](docs/awesome-react-components.md)
 
 ---
 

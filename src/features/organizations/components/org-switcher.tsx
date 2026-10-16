@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { activeOrgQueryOptions, organizationKeys } from '@/features/organizations/api/queries';
+import { activeOrgQueryOptions, organizationKeys, auditLogKeys } from '@/features/organizations/api/queries';
 import { switchActiveOrg } from '@/features/organizations/api/service';
 
 function OrgAvatar({ name, className }: { name: string; className?: string }) {
@@ -51,6 +51,7 @@ export function OrgSwitcher() {
     mutationFn: (orgId: string) => switchActiveOrg(orgId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: organizationKeys.all });
+      queryClient.invalidateQueries({ queryKey: auditLogKeys.all });
       router.refresh();
     }
   });

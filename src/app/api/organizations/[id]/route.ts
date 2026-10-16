@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ACTIVE_ORG_COOKIE } from '@/lib/auth/organization';
-import { getSessionOr401, err, toServiceErrorResponse } from '../_lib';
+import { getSessionOr401, getMembershipWithPermissionOr403, err, toServiceErrorResponse } from '../_lib';
 import {
   getOrganizationById,
   renameOrganizationById,
@@ -18,17 +18,16 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
+  // Verify membership & organization.read permission
+  const membershipOrError = await getMembershipWithPermissionOr403(id, session.user.id, 'organization.read');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
+
   try {
     const organization = await getOrganizationById(id);
     if (!organization) {
       return err('Organization not found', 404);
     }
-
-    // Verify membership
-    const { getMembershipOr403 } = await import('../_lib');
-    const membershipOrError = await getMembershipOr403(id, session.user.id);
-    if (membershipOrError instanceof NextResponse) return membershipOrError;
-    const membership = membershipOrError;
 
     return NextResponse.json({
       organization: {
@@ -50,6 +49,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const sessionOrError = await getSessionOr401();
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
+
+  const membershipOrError = await getMembershipWithPermissionOr403(id, session.user.id, 'organization.update');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   const body = await request.json().catch(() => null);
   const parsed = renameOrganizationSchema.safeParse(body);
@@ -74,6 +76,9 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   const sessionOrError = await getSessionOr401();
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
+
+  const membershipOrError = await getMembershipWithPermissionOr403(id, session.user.id, 'organization.delete');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   try {
     await deleteOrganizationById({ id, actorId: session.user.id });

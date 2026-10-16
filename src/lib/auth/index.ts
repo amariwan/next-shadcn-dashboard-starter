@@ -53,17 +53,21 @@ async function getAuthConfig(dbUrl: string): Promise<any> {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role
+            role: user.role,
+            locale: user.locale ?? 'en'
           };
         }
       })
     ],
     callbacks: {
-      jwt(params: { token: Record<string, any>; user: { role: string; id: string } }) {
+      jwt(params: { token: Record<string, any>; user: { role: string; id: string; locale?: string } }) {
         const { token, user } = params;
         if (user) {
           token.role = user.role;
           token.id = user.id;
+          if (user.locale) {
+            token.locale = user.locale;
+          }
         }
         return token;
       },
@@ -75,6 +79,7 @@ async function getAuthConfig(dbUrl: string): Promise<any> {
         if (session.user) {
           session.user.id = token.id;
           session.user.role = token.role;
+          session.user.locale = token.locale ?? 'en';
           // Attach org/team context (self-hosted Orgs feature). Computed live
           // from memberships + the sticky `active-org-id` cookie so switching
           // orgs never needs a JWT rotation.

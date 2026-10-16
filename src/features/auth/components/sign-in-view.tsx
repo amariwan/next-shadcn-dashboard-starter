@@ -6,12 +6,12 @@ import { Label } from '@/components/ui/label';
 import { GitHubStarsButton } from '@/components/github-stars-button';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link, useRouter } from '@/i18n/navigation';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth/client';
 import { z } from 'zod';
 import { InteractiveGridPattern } from './interactive-grid';
+import { useTranslations } from 'next-intl';
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -22,6 +22,8 @@ export default function SignInViewPage() {
   const router = useRouter();
   const [error, setError] = useState('');
   const [isPending, setIsPending] = useState(false);
+  const t = useTranslations('auth');
+  const tVal = useTranslations('validation');
 
   function startTransition(cb: () => Promise<void>) {
     setIsPending(true);
@@ -37,7 +39,7 @@ export default function SignInViewPage() {
       password: formData.get('password')
     });
     if (!result.success) {
-      setError('Please enter a valid email and password.');
+      setError(tVal('invalidEmail'));
       return;
     }
     startTransition(async () => {
@@ -47,7 +49,7 @@ export default function SignInViewPage() {
         redirect: false
       });
       if (response?.error) {
-        setError('Invalid email or password.');
+        setError(t('invalidCredentials'));
         return;
       }
       router.push('/dashboard/overview');
@@ -58,13 +60,13 @@ export default function SignInViewPage() {
   return (
     <div className='relative flex min-h-screen flex-col items-center justify-center overflow-hidden md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <Link
-        href='/examples/authentication'
+        href='/auth/sign-in'
         className={cn(
           buttonVariants({ variant: 'ghost' }),
           'absolute top-4 right-4 hidden md:top-8 md:right-8'
         )}
       >
-        Login
+        {t('signIn')}
       </Link>
       <div className='relative hidden h-full flex-col p-10 lg:flex dark:border-r'>
         <div className='absolute inset-0 bg-sidebar' />
@@ -110,16 +112,16 @@ export default function SignInViewPage() {
           />
           <form onSubmit={onSubmit} className='space-y-4 w-full'>
             <div className='space-y-2'>
-              <Label htmlFor='email'>Email</Label>
+              <Label htmlFor='email'>{t('email')}</Label>
               <Input id='email' name='email' type='email' required placeholder='you@example.com' />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='password'>Password</Label>
+              <Label htmlFor='password'>{t('password')}</Label>
               <Input id='password' name='password' type='password' required />
             </div>
             {error && <p className='text-destructive text-sm text-center'>{error}</p>}
             <Button type='submit' className='w-full' disabled={isPending}>
-              Sign In
+              {t('signIn')}
             </Button>
           </form>
           <div className='text-muted-foreground space-y-2 px-8 text-center text-xs'>
@@ -131,13 +133,14 @@ export default function SignInViewPage() {
               for demo purposes. Authentication is handled locally with Auth.js.
             </p>
             <p>
-              <Link
+              <a
                 href='https://github.com/amariwan/next-shadcn-dashboard-starter'
                 target='_blank'
+                rel='noopener noreferrer'
                 className='hover:text-primary underline underline-offset-4'
               >
                 View on GitHub
-              </Link>
+              </a>
             </p>
           </div>
           <p className='text-muted-foreground px-8 text-center text-sm'>
@@ -158,9 +161,9 @@ export default function SignInViewPage() {
             .
           </p>
           <p className='text-center text-sm'>
-            Don&apos;t have an account?{' '}
+            {t('dontHaveAccount')}{' '}
             <Link href='/auth/sign-up' className='text-primary underline underline-offset-4'>
-              Sign up
+              {t('signUp')}
             </Link>
           </p>
         </div>

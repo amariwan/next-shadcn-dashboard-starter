@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
+import { useTranslations } from 'next-intl';
 
 interface DataTablePaginationProps<TData> extends React.ComponentProps<'div'> {
   table: Table<TData>;
@@ -23,6 +24,10 @@ export function DataTablePagination<TData>({
   className,
   ...props
 }: DataTablePaginationProps<TData>) {
+  const t = useTranslations('common');
+  const currentPage = table.getState().pagination.pageIndex + 1;
+  const totalPages = Math.max(1, table.getPageCount());
+
   return (
     <div
       className={cn(
@@ -34,16 +39,16 @@ export function DataTablePagination<TData>({
       <div className='text-muted-foreground text-sm whitespace-nowrap'>
         {table.getFilteredSelectedRowModel().rows.length > 0 ? (
           <>
-            {table.getFilteredSelectedRowModel().rows.length} of{' '}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+            {table.getFilteredSelectedRowModel().rows.length} /{' '}
+            {table.getFilteredRowModel().rows.length}
           </>
         ) : (
-          <>{table.getFilteredRowModel().rows.length} row(s) total.</>
+          <>{table.getFilteredRowModel().rows.length}</>
         )}
       </div>
       <div className='flex items-center gap-2 sm:gap-6 lg:gap-8'>
         <div className='hidden items-center space-x-2 sm:flex'>
-          <p className='text-sm font-medium whitespace-nowrap'>Rows per page</p>
+          <p className='text-sm font-medium whitespace-nowrap'>{t('pagination.rowsPerPage')}</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
@@ -63,7 +68,7 @@ export function DataTablePagination<TData>({
           </Select>
         </div>
         <div className='flex items-center justify-center text-sm font-medium whitespace-nowrap'>
-          Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+          {t('pagination.pageOf', { current: currentPage, total: totalPages })}
         </div>
         <div className='flex items-center space-x-1'>
           <Button
@@ -77,7 +82,7 @@ export function DataTablePagination<TData>({
             <Icons.chevronsLeft />
           </Button>
           <Button
-            aria-label='Go to previous page'
+            aria-label={t('pagination.previous')}
             variant='outline'
             size='icon'
             className='size-8'
@@ -87,7 +92,7 @@ export function DataTablePagination<TData>({
             <ChevronLeftIcon />
           </Button>
           <Button
-            aria-label='Go to next page'
+            aria-label={t('pagination.next')}
             variant='outline'
             size='icon'
             className='size-8'

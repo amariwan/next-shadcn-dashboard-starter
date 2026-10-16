@@ -1,4 +1,5 @@
 import type { OrgRole } from '@/lib/auth/organization';
+import type { OrgPermission } from '@/lib/auth/rbac';
 
 export interface OrganizationSummary {
   id: string;
@@ -56,6 +57,7 @@ export interface InvitePreview {
 export interface ActiveOrgState {
   activeOrgId: string | null;
   activeOrgRole: OrgRole | null;
+  permissions?: OrgPermission[];
   organizations: Array<{
     id: string;
     name: string;
@@ -64,3 +66,37 @@ export interface ActiveOrgState {
     role: OrgRole;
   }>;
 }
+
+export interface AuditLogItem {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AuditLogFilters {
+  page?: number;
+  limit?: number;
+  search?: string;
+  action?: string;
+  entityType?: string;
+  organizationId?: string;
+  userId?: string;
+  cursor?: string;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogItem[];
+  total: number;
+  page: number;
+  pageCount: number;
+  hasMore: boolean;
+}
+

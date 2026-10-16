@@ -12,7 +12,9 @@ import type {
   OrganizationMember,
   OrganizationInvitation,
   InvitePreview,
-  ActiveOrgState
+  ActiveOrgState,
+  AuditLogFilters,
+  AuditLogsResponse
 } from './types';
 
 export async function getOrganizations(): Promise<OrganizationsResponse> {
@@ -104,3 +106,21 @@ export async function switchActiveOrg(orgId: string) {
     body: JSON.stringify({ orgId })
   });
 }
+
+export async function getAuditLogs(
+  filters: AuditLogFilters = {}
+): Promise<AuditLogsResponse> {
+  const params = new URLSearchParams();
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.search) params.set('search', filters.search);
+  if (filters.action) params.set('action', filters.action);
+  if (filters.entityType) params.set('entityType', filters.entityType);
+  if (filters.organizationId) params.set('organizationId', filters.organizationId);
+  if (filters.userId) params.set('userId', filters.userId);
+  if (filters.cursor) params.set('cursor', filters.cursor);
+
+  const query = params.toString();
+  return apiClient<AuditLogsResponse>(`/audit-logs${query ? `?${query}` : ''}`);
+}
+

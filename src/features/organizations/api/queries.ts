@@ -5,16 +5,20 @@ import {
   getMembers,
   getInvitations,
   previewInvitation,
-  getActiveOrg
+  getActiveOrg,
+  getAuditLogs
 } from './service';
+import type { AuditLogFilters } from './types';
 
 export const organizationKeys = {
   all: ['organizations'] as const,
   list: () => [...organizationKeys.all, 'list'] as const,
   detail: (id: string) => [...organizationKeys.all, 'detail', id] as const,
   members: (id: string) => [...organizationKeys.detail(id), 'members'] as const,
-  invitations: (id: string) => [...organizationKeys.detail(id), 'invitations'] as const,
-  invitePreview: (token: string) => [...organizationKeys.all, 'invite', token] as const,
+  invitations: (id: string) =>
+    [...organizationKeys.detail(id), 'invitations'] as const,
+  invitePreview: (token: string) =>
+    [...organizationKeys.all, 'invite', token] as const,
   active: () => [...organizationKeys.all, 'active'] as const
 };
 
@@ -48,3 +52,15 @@ export const invitePreviewOptions = (token: string) =>
 
 export const activeOrgQueryOptions = () =>
   queryOptions({ queryKey: organizationKeys.active(), queryFn: getActiveOrg });
+
+export const auditLogKeys = {
+  all: ['audit-logs'] as const,
+  list: (filters: AuditLogFilters) =>
+    [...auditLogKeys.all, 'list', filters] as const
+};
+
+export const auditLogsQueryOptions = (filters: AuditLogFilters = {}) =>
+  queryOptions({
+    queryKey: auditLogKeys.list(filters),
+    queryFn: () => getAuditLogs(filters)
+  });

@@ -3,6 +3,7 @@ import type { Session } from 'next-auth';
 import type { Organization, OrganizationMembership } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { getOrgPrisma, type OrgRole } from '@/lib/auth/organization';
+import { hasOrgPermission, type OrgPermission } from '@/lib/auth/rbac';
 
 export function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -14,11 +15,15 @@ export type MembershipWithOrg = OrganizationMembership & {
 
 /** Returns the session, or an error Response to return directly. */
 export async function getSessionOr401(): Promise<Session | NextResponse> {
-  const session = (await auth()) as Session | null;
-  if (!session?.user?.id) {
+  try {
+    const session = (await auth()) as Session | null;
+    if (!session?.user?.id) {
+      return err('Unauthorized', 401);
+    }
+    return session;
+  } catch {
     return err('Unauthorized', 401);
   }
-  return session;
 }
 
 const RANK: Record<OrgRole, number> = { member: 0, admin: 1, owner: 2 };
@@ -55,6 +60,30 @@ export async function getMembershipOr403(
   return membership;
 }
 
+/**
+ * Load membership + organization, enforcing a granular OrgPermission.
+ * Returns the membership, or an error Response (404/403) to return directly.
+ */
+export async function getMembershipWithPermissionOr403(
+  organizationId: string,
+  userId: string,
+  permission: OrgPermission
+): Promise<MembershipWithOrg | NextResponse> {
+  const prisma = getOrgPrisma();
+  const membership = await prisma.organizationMembership.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    include: { organization: true }
+  });
+
+  if (!membership) {
+    return err('Organization not found', 404);
+  }
+  if (!hasOrgPermission(membership.role as OrgRole, permission)) {
+    return err('Forbidden', 403);
+  }
+  return membership;
+}
+
 export async function countOwners(organizationId: string): Promise<number> {
   const prisma = getOrgPrisma();
   return prisma.organizationMembership.count({
@@ -66,7 +95,9 @@ export async function countOwners(organizationId: string): Promise<number> {
 export function toServiceErrorResponse(error: unknown): NextResponse {
   if (error instanceof Error) {
     const msg = error.message;
-    if (msg === 'Forbidden') return err('Forbidden', 403);
+    if (msg === 'Forbidden' || msg.startsWith('Forbidden') || msg.includes('Only owners')) {
+      return err(msg, 403);
+    }
     if (msg.includes('not found')) return err(msg, 404);
     if (msg.includes('must keep at least one owner')) return err(msg, 400);
     return err(msg, 400);

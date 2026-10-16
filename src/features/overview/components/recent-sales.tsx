@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '@/components/ui/card';
+import { useTranslations } from 'next-intl';
 
 const salesData = [
   {
@@ -40,11 +41,13 @@ const salesData = [
 ];
 
 export function RecentSales() {
+  const t = useTranslations('dashboard');
+
   return (
     <Card className='h-full'>
       <CardHeader>
-        <CardTitle>Recent Sales</CardTitle>
-        <CardDescription>You made 265 sales this month.</CardDescription>
+        <CardTitle>{t('recentSales')}</CardTitle>
+        <CardDescription>{t('recentSalesDescription', { count: 265 })}</CardDescription>
       </CardHeader>
       <CardContent>
         <div className='space-y-8'>

@@ -7,11 +7,12 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String                   @id @default(cuid())
   name          String?
-  email         String    @unique
+  email         String                   @unique
   password      String
-  role          String    @default("user")
+  role          String                   @default("user")
+  locale        String?                  @default("en")
   emailVerified DateTime?
   image         String?
   accounts      Account[]
@@ -19,8 +20,10 @@ model User {
   memberships   OrganizationMembership[] @relation("OrganizationMemberships")
   createdOrgs   Organization[]           @relation("CreatedOrganizations")
   sentInvites   OrganizationInvitation[] @relation("SentInvitations")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
+  dashboardLayouts DashboardLayout[]
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
 
   @@map("users")
 }
@@ -67,16 +70,18 @@ model VerificationToken {
 }
 
 model Organization {
-  id          String                       @id @default(cuid())
+  id          String                   @id @default(cuid())
   name        String
-  slug        String                       @unique
+  slug        String                   @unique
   image       String?
   createdById String
-  createdBy   User                         @relation("CreatedOrganizations", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy   User                     @relation("CreatedOrganizations", fields: [createdById], references: [id], onDelete: Cascade)
   memberships OrganizationMembership[]
   invitations OrganizationInvitation[]
-  createdAt   DateTime                     @default(now())
-  updatedAt   DateTime                     @updatedAt
+  auditLogs   AuditLog[]
+  dashboardLayouts DashboardLayout[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
 
   @@map("organizations")
 }
@@ -113,19 +118,36 @@ model OrganizationInvitation {
 }
 
 model AuditLog {
-  id             String   @id @default(cuid())
+  id             String        @id @default(cuid())
   action         String
   entityType     String
   entityId       String
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   metadata       String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime      @default(now())
 
   @@index([userId])
   @@index([organizationId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+model DashboardLayout {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dashboardId    String        @default("overview")
+  layout         String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([userId, organizationId, dashboardId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("dashboard_layouts")
 }

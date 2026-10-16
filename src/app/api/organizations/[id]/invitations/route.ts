@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionOr401, getMembershipOr403, err, toServiceErrorResponse } from '../../_lib';
+import {
+  getSessionOr401,
+  getMembershipWithPermissionOr403,
+  err,
+  toServiceErrorResponse
+} from '../../_lib';
 import {
   listInvitations,
   createInvitation as createInvitationService,
   revokeInvitationById
 } from '@/features/organizations/api/server-service';
 import { inviteMemberSchema } from '@/features/organizations/schemas';
+import { canInviteRole } from '@/lib/auth/rbac';
 
 interface Params {
   params: Promise<{ id: string }>;
 }
-
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function inviteUrl(request: NextRequest, token: string): string {
   const origin = request.nextUrl.origin;
@@ -24,11 +28,15 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  const membershipOrError = await getMembershipWithPermissionOr403(
+    id,
+    session.user.id,
+    'invitations.read'
+  );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   try {
-    const invitations = await listInvitations(id);
+    const invitations = await listInvitations(id, session.user.id);
     return NextResponse.json({
       invitations: invitations.map((i) => ({
         id: i.id,
@@ -50,8 +58,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  const membershipOrError = await getMembershipWithPermissionOr403(
+    id,
+    session.user.id,
+    'invitations.manage'
+  );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const actorMembership = membershipOrError;
 
   const body = await request.json().catch(() => null);
   const parsed = inviteMemberSchema.safeParse(body);
@@ -63,11 +76,9 @@ export async function POST(request: NextRequest, { params }: Params) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return err('A valid email is required');
   }
-  // Only owners can invite owners.
-  const membershipOrError2 = await getMembershipOr403(id, session.user.id);
-  if (membershipOrError2 instanceof NextResponse) return membershipOrError2;
-  const actorMembership = membershipOrError2;
-  if (role === 'owner' && actorMembership.role !== 'owner') {
+
+  // Privilege escalation check: only owners can invite another owner
+  if (!canInviteRole(actorMembership.role, role)) {
     return err('Only owners can invite another owner', 403);
   }
 
@@ -102,7 +113,11 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  const membershipOrError = await getMembershipWithPermissionOr403(
+    id,
+    session.user.id,
+    'invitations.manage'
+  );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   const invitationId = request.nextUrl.searchParams.get('invitationId');

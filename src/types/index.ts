@@ -1,7 +1,8 @@
 import { Icons } from '@/components/icons';
+import type { OrgPermission } from '@/lib/auth/rbac';
 
 export interface PermissionCheck {
-  permission?: string;
+  permission?: OrgPermission | string;
   plan?: string;
   feature?: string;
   role?: string;

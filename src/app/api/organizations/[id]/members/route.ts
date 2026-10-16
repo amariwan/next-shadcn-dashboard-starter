@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionOr401, getMembershipOr403, err, toServiceErrorResponse } from '../../_lib';
+import {
+  getSessionOr401,
+  getMembershipWithPermissionOr403,
+  err,
+  toServiceErrorResponse
+} from '../../_lib';
 import {
   listMembers,
   updateMemberRoleById,
@@ -17,7 +22,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id);
+  const membershipOrError = await getMembershipWithPermissionOr403(
+    id,
+    session.user.id,
+    'members.read'
+  );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   try {
@@ -43,7 +52,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  const membershipOrError = await getMembershipWithPermissionOr403(
+    id,
+    session.user.id,
+    'roles.manage'
+  );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
 
   const body = await request.json().catch(() => null);
@@ -77,10 +90,10 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const targetUserId = searchParams.get('userId') ?? session.user.id;
   const leaving = targetUserId === session.user.id;
 
-  const membershipOrError = await getMembershipOr403(
+  const membershipOrError = await getMembershipWithPermissionOr403(
     id,
     session.user.id,
-    leaving ? 'member' : 'admin'
+    leaving ? 'members.read' : 'members.manage'
   );
   if (membershipOrError instanceof NextResponse) return membershipOrError;
 

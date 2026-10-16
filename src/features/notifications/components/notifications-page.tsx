@@ -5,13 +5,14 @@ import PageContainer from '@/components/layout/page-container';
 import { Button } from '@/components/ui/button';
 import { NotificationCard } from '@/components/ui/notification-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
 import { useNotificationStore } from '../utils/store';
+import { useTranslations } from 'next-intl';
 
 const actionRoutes: Record<string, string> = {
   view: '/dashboard/workspaces',
   'view-product': '/dashboard/product',
-  billing: '/dashboard/billing',
+  billing: '/dashboard/overview',
   open: '/dashboard/kanban',
   'open-chat': '/dashboard/chat'
 };
@@ -19,6 +20,7 @@ const actionRoutes: Record<string, string> = {
 export default function NotificationsPage() {
   const { notifications, markAsRead, markAllAsRead, unreadCount } = useNotificationStore();
   const router = useRouter();
+  const t = useTranslations('notifications');
   const count = unreadCount();
 
   const unreadNotifications = notifications.filter((n) => n.status === 'unread');
@@ -29,7 +31,7 @@ export default function NotificationsPage() {
       return (
         <div className='flex flex-col items-center justify-center py-16'>
           <Icons.notification className='text-muted-foreground/40 mb-3 h-10 w-10' />
-          <p className='text-muted-foreground text-sm'>No notifications</p>
+          <p className='text-muted-foreground text-sm'>{t('noNotifications')}</p>
         </div>
       );
     }
@@ -50,7 +52,7 @@ export default function NotificationsPage() {
               const route = actionRoutes[actionId];
               if (route) {
                 markAsRead(notifId);
-                router.push(route);
+                router.push(route as any);
               }
             }}
           />
@@ -61,20 +63,24 @@ export default function NotificationsPage() {
 
   return (
     <PageContainer
-      pageTitle='Notifications'
-      pageDescription='View and manage all your notifications.'
+      pageTitle={t('title')}
+      pageDescription={t('description')}
       pageHeaderAction={
         count > 0 ? (
           <Button variant='outline' size='sm' onClick={markAllAsRead}>
-            Mark all as read
+            {t('markAllAsRead')}
           </Button>
         ) : undefined
       }
     >
       <Tabs defaultValue='all'>
         <TabsList>
-          <TabsTrigger value='all'>All ({notifications.length})</TabsTrigger>
-          <TabsTrigger value='unread'>Unread ({unreadNotifications.length})</TabsTrigger>
+          <TabsTrigger value='all'>
+            {t('all')} ({notifications.length})
+          </TabsTrigger>
+          <TabsTrigger value='unread'>
+            {t('unread')} ({unreadNotifications.length})
+          </TabsTrigger>
           <TabsTrigger value='read'>Read ({readNotifications.length})</TabsTrigger>
         </TabsList>
         <TabsContent value='all' className='mt-4'>

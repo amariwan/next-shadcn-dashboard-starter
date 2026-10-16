@@ -5,6 +5,7 @@ import { Breadcrumbs } from '../breadcrumbs';
 import SearchInput from '../search-input';
 import { ThemeSelector } from '../themes/theme-selector';
 import { ThemeModeToggle } from '../themes/theme-mode-toggle';
+import { LocaleSwitcher } from './locale-switcher';
 import CtaGithub from './cta-github';
 import { NotificationCenter } from '@/features/notifications/components/notification-center';
 
@@ -22,6 +23,7 @@ export default function Header() {
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
+        <LocaleSwitcher />
         <ThemeModeToggle />
         <div className='hidden sm:block'>
           <ThemeSelector />

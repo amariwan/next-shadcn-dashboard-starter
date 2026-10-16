@@ -31,8 +31,8 @@ import { navGroups } from '@/config/nav-config';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useFilteredNavGroups } from '@/hooks/use-nav';
 import { signOut } from 'next-auth/react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
+import { useTranslations } from 'next-intl';
 import * as React from 'react';
 import { Icons } from '../icons';
 
@@ -41,6 +41,47 @@ export default function AppSidebar() {
   const { isOpen } = useMediaQuery();
   const router = useRouter();
   const filteredGroups = useFilteredNavGroups(navGroups);
+  const t = useTranslations('nav');
+  const tAuth = useTranslations('auth');
+
+  const getTranslatedTitle = (title: string) => {
+    switch (title) {
+      case 'Overview':
+        return t('overview');
+      case 'Dashboard':
+        return t('dashboard');
+      case 'Product':
+        return t('product');
+      case 'Users':
+        return t('users');
+      case 'Workspaces':
+        return t('workspaces');
+      case 'Audit Log':
+        return t('auditLog');
+      case 'Kanban':
+        return t('kanban');
+      case 'Chat':
+        return t('chat');
+      case 'Notifications':
+        return t('notifications');
+      case 'Forms':
+        return t('forms');
+      case 'Elements':
+        return t('elements');
+      case 'Icons':
+        return t('icons');
+      case 'Profile':
+        return t('profile');
+      case 'Account':
+        return t('account');
+      case 'Billing':
+        return t('billing');
+      case 'Login':
+        return tAuth('signIn');
+      default:
+        return title;
+    }
+  };
 
   React.useEffect(() => {
     // Side effects based on sidebar state changes
@@ -60,7 +101,7 @@ export default function AppSidebar() {
                   <Icons.logo className='size-4' />
                 </div>
                 <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>Dashboard</span>
+                  <span className='truncate font-medium'>{t('dashboard')}</span>
                   <span className='text-muted-foreground truncate text-xs'>Admin Panel</span>
                 </div>
               </Link>
@@ -71,10 +112,11 @@ export default function AppSidebar() {
       <SidebarContent className='overflow-x-hidden'>
         {filteredGroups.map((group) => (
           <SidebarGroup key={group.label || 'ungrouped'} className='py-0'>
-            {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
+            {group.label && <SidebarGroupLabel>{getTranslatedTitle(group.label)}</SidebarGroupLabel>}
             <SidebarMenu>
               {group.items.map((item) => {
                 const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+                const translatedTitle = getTranslatedTitle(item.title);
                 return item?.items && item?.items?.length > 0 ? (
                   <Collapsible
                     key={item.title}
@@ -84,9 +126,9 @@ export default function AppSidebar() {
                   >
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton tooltip={item.title} isActive={pathname === item.url}>
+                        <SidebarMenuButton tooltip={translatedTitle} isActive={pathname === item.url}>
                           {item.icon && <Icon />}
-                          <span>{item.title}</span>
+                          <span>{translatedTitle}</span>
                           <Icons.chevronRight className='ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
@@ -95,8 +137,8 @@ export default function AppSidebar() {
                           {item.items?.map((subItem) => (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton asChild isActive={pathname === subItem.url}>
-                                <Link href={subItem.url}>
-                                  <span>{subItem.title}</span>
+                                <Link href={subItem.url as any}>
+                                  <span>{getTranslatedTitle(subItem.title)}</span>
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
@@ -109,12 +151,12 @@ export default function AppSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
-                      tooltip={item.title}
+                      tooltip={translatedTitle}
                       isActive={pathname === item.url}
                     >
-                      <Link href={item.url}>
+                      <Link href={item.url as any}>
                         <Icon />
-                        <span>{item.title}</span>
+                        <span>{translatedTitle}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -153,11 +195,11 @@ export default function AppSidebar() {
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
                     <Icons.account className='mr-2 h-4 w-4' />
-                    Profile
+                    {t('profile')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
                     <Icons.notification className='mr-2 h-4 w-4' />
-                    Notifications
+                    {t('notifications')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -168,7 +210,7 @@ export default function AppSidebar() {
                     className='p-0 w-full h-auto justify-start'
                     onClick={() => signOut({ redirectTo: '/' })}
                   >
-                    Sign Out
+                    {t('logout')}
                   </Button>
                 </DropdownMenuItem>
               </DropdownMenuContent>

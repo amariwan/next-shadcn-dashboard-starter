@@ -1,5 +1,6 @@
 import { auth } from '.';
 import { getOrgPrisma, slugify, type OrgRole } from './organization';
+import { hasOrgPermission, type OrgPermission } from './rbac';
 import { redirect } from 'next/navigation';
 
 export async function requireAuth() {
@@ -51,6 +52,32 @@ export async function requireOrgRole(organizationId: string, minimumRole: OrgRol
 
   const rank: Record<OrgRole, number> = { member: 0, admin: 1, owner: 2 };
   if (rank[membership.role as OrgRole] < rank[minimumRole]) {
+    redirect(`/dashboard/workspaces/${organizationId}`);
+  }
+
+  return { session, membership, organization: membership.organization };
+}
+
+/**
+ * Require a specific organization permission for the current user in a target organization.
+ * Checks the database directly to ensure authority is always up to date.
+ */
+export async function requireOrgPermission(organizationId: string, permission: OrgPermission) {
+  const session = await requireAuth();
+  const prisma = getOrgPrisma();
+
+  const membership = await prisma.organizationMembership.findUnique({
+    where: {
+      userId_organizationId: { userId: session.user.id!, organizationId }
+    },
+    include: { organization: true }
+  });
+
+  if (!membership) {
+    redirect('/dashboard/workspaces');
+  }
+
+  if (!hasOrgPermission(membership.role as OrgRole, permission)) {
     redirect(`/dashboard/workspaces/${organizationId}`);
   }
 

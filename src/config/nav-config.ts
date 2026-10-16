@@ -38,6 +38,15 @@ export const navGroups: NavGroup[] = [
         access: { feature: 'orgs' }
       },
       {
+        title: 'Audit Log',
+        url: '/dashboard/audit-log',
+        icon: 'clock',
+        shortcut: ['a', 'l'],
+        isActive: false,
+        items: [],
+        access: { feature: 'orgs', requireOrg: true, permission: 'audit.read' }
+      },
+      {
         title: 'Kanban',
         url: '/dashboard/kanban',
         icon: 'kanban',

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { OrgRole } from '@/lib/auth/organization';
 
 export const createOrganizationSchema = z.object({
   name: z.string().min(2, 'Name at least 2 characters').max(60)

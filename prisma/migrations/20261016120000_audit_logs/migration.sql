@@ -1,4 +1,4 @@
-// CreateTable
+-- CreateTable
 CREATE TABLE "audit_logs" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "action" TEXT NOT NULL,

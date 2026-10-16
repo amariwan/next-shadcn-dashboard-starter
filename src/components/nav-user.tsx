@@ -18,6 +18,9 @@ import {
   SidebarMenuItem,
   useSidebar
 } from '@/components/ui/sidebar';
+import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/navigation';
+import { signOut } from 'next-auth/react';
 
 export function NavUser({
   user
@@ -29,6 +32,8 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const t = useTranslations('nav');
+  const router = useRouter();
 
   return (
     <SidebarMenu>
@@ -72,28 +77,28 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <Icons.sparkles className='mr-2 h-4 w-4' />
-                Upgrade to Pro
+                {t('upgradeToPro')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
                 <Icons.circleCheck className='mr-2 h-4 w-4' />
-                Account
+                {t('account')}
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/overview')}>
                 <Icons.creditCard className='mr-2 h-4 w-4' />
-                Billing
+                {t('billing')}
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/notifications')}>
                 <Icons.notification className='mr-2 h-4 w-4' />
-                Notifications
+                {t('notifications')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => signOut({ redirectTo: '/' })}>
               <Icons.logout className='mr-2 h-4 w-4' />
-              Log out
+              {t('logout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
