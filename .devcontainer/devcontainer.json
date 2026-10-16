@@ -1,0 +1,23 @@
+{
+  "name": "next-shadcn-dashboard-starter",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:3-24-bookworm",
+  "remoteUser": "node",
+  "containerUser": "node",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Next.js dev server",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "prisma.prisma",
+        "oxc.oxc-vscode"
+      ]
+    }
+  }
+}
