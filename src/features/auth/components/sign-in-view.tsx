@@ -6,18 +6,12 @@ import { Label } from '@/components/ui/label';
 import { GitHubStarsButton } from '@/components/github-stars-button';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-import { Metadata } from 'next';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { signIn } from '@/lib/auth/client';
 import { z } from 'zod';
 import { InteractiveGridPattern } from './interactive-grid';
-
-export const metadata: Metadata = {
-  title: 'Authentication',
-  description: 'Authentication forms built using the components.'
-};
 
 const signInSchema = z.object({
   email: z.string().email(),
@@ -117,26 +111,13 @@ export default function SignInViewPage() {
           <form onSubmit={onSubmit} className='space-y-4 w-full'>
             <div className='space-y-2'>
               <Label htmlFor='email'>Email</Label>
-              <Input
-                id='email'
-                name='email'
-                type='email'
-                required
-                placeholder='you@example.com'
-              />
+              <Input id='email' name='email' type='email' required placeholder='you@example.com' />
             </div>
             <div className='space-y-2'>
               <Label htmlFor='password'>Password</Label>
-              <Input
-                id='password'
-                name='password'
-                type='password'
-                required
-              />
+              <Input id='password' name='password' type='password' required />
             </div>
-            {error && (
-              <p className='text-destructive text-sm text-center'>{error}</p>
-            )}
+            {error && <p className='text-destructive text-sm text-center'>{error}</p>}
             <Button type='submit' className='w-full' disabled={isPending}>
               Sign In
             </Button>

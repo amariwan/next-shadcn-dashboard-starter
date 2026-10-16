@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
@@ -12,8 +14,7 @@ interface GitHubRepo {
 async function fetchGitHubRepo(owner: string, repo: string): Promise<GitHubRepo | null> {
   try {
     const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-      headers: { Accept: 'application/vnd.github.v3+json' },
-      next: { revalidate: 3600 }
+      headers: { Accept: 'application/vnd.github.v3+json' }
     });
     if (!response.ok) return null;
     const data = await response.json();
@@ -110,7 +111,7 @@ interface GitHubStarsButtonProps
   iconStyle?: IconStyle;
 }
 
-async function GitHubStarsButton({
+function GitHubStarsButton({
   owner,
   repo,
   stars: starsProp,
@@ -121,9 +122,26 @@ async function GitHubStarsButton({
   className,
   ...props
 }: GitHubStarsButtonProps) {
-  const data = starsProp == null ? await fetchGitHubRepo(owner, repo) : null;
-  const stars = starsProp ?? data?.stars ?? null;
-  const fullName = data?.fullName ?? `${owner}/${repo}`;
+  const [stars, setStars] = React.useState<number | null>(starsProp ?? null);
+  const [fullName, setFullName] = React.useState(`${owner}/${repo}`);
+
+  React.useEffect(() => {
+    if (starsProp != null) {
+      setStars(starsProp);
+      return;
+    }
+    let cancelled = false;
+    fetchGitHubRepo(owner, repo).then((data) => {
+      if (cancelled) return;
+      if (data) {
+        setStars(data.stars);
+        setFullName(data.fullName);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [owner, repo, starsProp]);
 
   return (
     <a
