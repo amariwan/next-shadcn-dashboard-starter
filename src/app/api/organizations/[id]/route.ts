@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ACTIVE_ORG_COOKIE, getOrgPrisma } from '@/lib/auth/organization';
-import { getSessionOr401, getMembershipOr403, err } from '../_lib';
+import { ACTIVE_ORG_COOKIE } from '@/lib/auth/organization';
+import { getSessionOr401, err, toServiceErrorResponse } from '../_lib';
+import {
+  getOrganizationById,
+  renameOrganizationById,
+  deleteOrganizationById
+} from '@/features/organizations/api/server-service';
+import { renameOrganizationSchema } from '@/features/organizations/schemas';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -12,25 +18,31 @@ export async function GET(_request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id);
-  if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
-
-  const prisma = getOrgPrisma();
-  const memberCount = await prisma.organizationMembership.count({
-    where: { organizationId: id }
-  });
-
-  return NextResponse.json({
-    organization: {
-      id: membership.organization.id,
-      name: membership.organization.name,
-      slug: membership.organization.slug,
-      image: membership.organization.image,
-      role: membership.role,
-      memberCount
+  try {
+    const organization = await getOrganizationById(id);
+    if (!organization) {
+      return err('Organization not found', 404);
     }
-  });
+
+    // Verify membership
+    const { getMembershipOr403 } = await import('../_lib');
+    const membershipOrError = await getMembershipOr403(id, session.user.id);
+    if (membershipOrError instanceof NextResponse) return membershipOrError;
+    const membership = membershipOrError;
+
+    return NextResponse.json({
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        image: organization.image,
+        role: membership.role,
+        memberCount: organization._count.memberships
+      }
+    });
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
@@ -39,23 +51,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
-  if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
-
   const body = await request.json().catch(() => null);
-  const name = typeof body?.name === 'string' ? body.name.trim() : '';
-  if (!name || name.length > 60) {
-    return err('Name is required (max 60 characters)');
+  const parsed = renameOrganizationSchema.safeParse(body);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0]?.message ?? 'Invalid input');
   }
 
-  const prisma = getOrgPrisma();
-  const organization = await prisma.organization.update({
-    where: { id },
-    data: { name }
-  });
-
-  return NextResponse.json({ organization });
+  try {
+    const organization = await renameOrganizationById({
+      id,
+      name: parsed.data.name.trim(),
+      actorId: session.user.id
+    });
+    return NextResponse.json({ organization });
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
@@ -64,14 +75,12 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   if (sessionOrError instanceof NextResponse) return sessionOrError;
   const session = sessionOrError;
 
-  const membershipOrError = await getMembershipOr403(id, session.user.id, 'owner');
-  if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
-
-  const prisma = getOrgPrisma();
-  await prisma.organization.delete({ where: { id } });
-
-  const res = NextResponse.json({ success: true });
-  res.cookies.delete(ACTIVE_ORG_COOKIE);
-  return res;
+  try {
+    await deleteOrganizationById({ id, actorId: session.user.id });
+    const res = NextResponse.json({ success: true });
+    res.cookies.delete(ACTIVE_ORG_COOKIE);
+    return res;
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }

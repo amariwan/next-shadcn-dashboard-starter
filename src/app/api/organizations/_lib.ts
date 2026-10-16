@@ -61,3 +61,15 @@ export async function countOwners(organizationId: string): Promise<number> {
     where: { organizationId, role: 'owner' }
   });
 }
+
+/** Convert a service-layer Error into a NextResponse (403/404/400). */
+export function toServiceErrorResponse(error: unknown): NextResponse {
+  if (error instanceof Error) {
+    const msg = error.message;
+    if (msg === 'Forbidden') return err('Forbidden', 403);
+    if (msg.includes('not found')) return err(msg, 404);
+    if (msg.includes('must keep at least one owner')) return err(msg, 400);
+    return err(msg, 400);
+  }
+  return err('Internal error', 500);
+}

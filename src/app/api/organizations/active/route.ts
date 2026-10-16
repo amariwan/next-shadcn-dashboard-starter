@@ -15,7 +15,9 @@ export async function GET() {
   });
 }
 
-/** Switch the active organization (must be a member). Sets a sticky cookie. */
+/** Switch the active organization (must be a member). Sets a sticky cookie.
+ * The session callback reads this cookie on the next request to update activeOrgId/role.
+ */
 export async function POST(request: NextRequest) {
   const sessionOrError = await getSessionOr401();
   if (sessionOrError instanceof NextResponse) return sessionOrError;

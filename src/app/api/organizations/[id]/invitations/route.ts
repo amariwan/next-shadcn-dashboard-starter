@@ -1,13 +1,22 @@
-import { randomBytes } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrgPrisma } from '@/lib/auth/organization';
-import { getSessionOr401, getMembershipOr403, isValidOrgRole, err } from '../../_lib';
+import { getSessionOr401, getMembershipOr403, err, toServiceErrorResponse } from '../../_lib';
+import {
+  listInvitations,
+  createInvitation as createInvitationService,
+  revokeInvitationById
+} from '@/features/organizations/api/server-service';
+import { inviteMemberSchema } from '@/features/organizations/schemas';
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function inviteUrl(request: NextRequest, token: string): string {
+  const origin = request.nextUrl.origin;
+  return `${origin}/dashboard/workspaces/join/${token}`;
+}
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -17,25 +26,22 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
   if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
 
-  const prisma = getOrgPrisma();
-  const invitations = await prisma.organizationInvitation.findMany({
-    where: { organizationId: id, acceptedAt: null },
-    include: { invitedBy: { select: { name: true, email: true } } },
-    orderBy: { createdAt: 'desc' }
-  });
-
-  return NextResponse.json({
-    invitations: invitations.map((i) => ({
-      id: i.id,
-      email: i.email,
-      role: i.role,
-      expiresAt: i.expiresAt,
-      invitedBy: i.invitedBy,
-      createdAt: i.createdAt
-    }))
-  });
+  try {
+    const invitations = await listInvitations(id);
+    return NextResponse.json({
+      invitations: invitations.map((i) => ({
+        id: i.id,
+        email: i.email,
+        role: i.role,
+        expiresAt: i.expiresAt.toISOString(),
+        invitedBy: i.invitedBy,
+        createdAt: i.createdAt.toISOString()
+      }))
+    });
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
@@ -46,75 +52,48 @@ export async function POST(request: NextRequest, { params }: Params) {
 
   const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
   if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
 
   const body = await request.json().catch(() => null);
-  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
-  const role = isValidOrgRole(body?.role) ? body.role : 'member';
+  const parsed = inviteMemberSchema.safeParse(body);
+  if (!parsed.success) {
+    return err(parsed.error.issues[0]?.message ?? 'Invalid input');
+  }
+
+  const { email, role } = parsed.data;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return err('A valid email is required');
   }
   // Only owners can invite owners.
-  if (role === 'owner' && membership.role !== 'owner') {
+  const membershipOrError2 = await getMembershipOr403(id, session.user.id);
+  if (membershipOrError2 instanceof NextResponse) return membershipOrError2;
+  const actorMembership = membershipOrError2;
+  if (role === 'owner' && actorMembership.role !== 'owner') {
     return err('Only owners can invite another owner', 403);
   }
 
-  const prisma = getOrgPrisma();
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    const alreadyMember = await prisma.organizationMembership.findUnique({
-      where: {
-        userId_organizationId: { userId: existingUser.id, organizationId: id }
-      }
-    });
-    if (alreadyMember) return err('User is already a member', 409);
-  }
-
-  const now = new Date();
-  const existing = await prisma.organizationInvitation.findFirst({
-    where: {
+  try {
+    const invitation = await createInvitationService({
       organizationId: id,
-      email,
-      acceptedAt: null,
-      expiresAt: { gt: now }
-    }
-  });
-  if (existing) {
-    return NextResponse.json({
-      invitation: {
-        id: existing.id,
-        email: existing.email,
-        role: existing.role,
-        expiresAt: existing.expiresAt
-      },
-      inviteUrl: inviteUrl(request, existing.token),
-      reused: true
-    });
-  }
-
-  const invitation = await prisma.organizationInvitation.create({
-    data: {
       email,
       role,
-      token: randomBytes(32).toString('hex'),
-      organizationId: id,
-      invitedById: session.user.id,
-      expiresAt: new Date(Date.now() + INVITE_TTL_MS)
-    }
-  });
+      invitedById: session.user.id
+    });
 
-  return NextResponse.json(
-    {
-      invitation: {
-        id: invitation.id,
-        email: invitation.email,
-        role: invitation.role,
-        expiresAt: invitation.expiresAt
+    return NextResponse.json(
+      {
+        invitation: {
+          id: invitation.id,
+          email: invitation.email,
+          role: invitation.role,
+          expiresAt: invitation.expiresAt.toISOString()
+        },
+        inviteUrl: inviteUrl(request, invitation.token)
       },
-      inviteUrl: inviteUrl(request, invitation.token)
-    },
-    { status: 201 }
-  );
+      { status: 201 }
+    );
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
@@ -125,22 +104,18 @@ export async function DELETE(request: NextRequest, { params }: Params) {
 
   const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
   if (membershipOrError instanceof NextResponse) return membershipOrError;
-  const membership = membershipOrError;
 
   const invitationId = request.nextUrl.searchParams.get('invitationId');
   if (!invitationId) return err('invitationId is required');
 
-  const prisma = getOrgPrisma();
-  const invitation = await prisma.organizationInvitation.findFirst({
-    where: { id: invitationId, organizationId: id }
-  });
-  if (!invitation) return err('Invitation not found', 404);
-
-  await prisma.organizationInvitation.delete({ where: { id: invitation.id } });
-  return NextResponse.json({ success: true });
-}
-
-function inviteUrl(request: NextRequest, token: string): string {
-  const origin = request.nextUrl.origin;
-  return `${origin}/dashboard/workspaces/join/${token}`;
+  try {
+    await revokeInvitationById({
+      organizationId: id,
+      invitationId,
+      actorId: session.user.id
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return toServiceErrorResponse(error);
+  }
 }
