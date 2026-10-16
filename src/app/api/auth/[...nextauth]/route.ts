@@ -14,7 +14,7 @@ async function getAuthConfig(): Promise<any> {
   if (dbUrl.startsWith('file:')) {
     const filePath = dbUrl.slice('file:'.length);
     if (filePath && !path.isAbsolute(filePath)) {
-      dbUrl = `file:${path.resolve(process.cwd(), filePath)}`;
+      dbUrl = `file:${path.resolve(process.cwd(), /*turbopackIgnore: true*/ filePath)}`;
     }
   }
 
