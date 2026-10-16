@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import type { Session } from 'next-auth';
+import type { Organization, OrganizationMembership } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { getOrgPrisma, type OrgRole } from '@/lib/auth/organization';
 
@@ -6,12 +8,17 @@ export function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
-export async function getSessionOr401() {
-  const session = await auth();
+export type MembershipWithOrg = OrganizationMembership & {
+  organization: Organization;
+};
+
+/** Returns the session, or an error Response to return directly. */
+export async function getSessionOr401(): Promise<Session | NextResponse> {
+  const session = (await auth()) as Session | null;
   if (!session?.user?.id) {
-    return { session: null, error: err('Unauthorized', 401) } as const;
+    return err('Unauthorized', 401);
   }
-  return { session, error: null } as const;
+  return session;
 }
 
 const RANK: Record<OrgRole, number> = { member: 0, admin: 1, owner: 2 };
@@ -26,13 +33,13 @@ export function isValidOrgRole(role: unknown): role is OrgRole {
 
 /**
  * Load membership + organization, enforcing a minimum role.
- * Returns `{ membership, organization }` or an error Response to return directly.
+ * Returns the membership, or an error Response to return directly.
  */
 export async function getMembershipOr403(
   organizationId: string,
   userId: string,
   minimumRole: OrgRole = 'member'
-) {
+): Promise<MembershipWithOrg | NextResponse> {
   const prisma = getOrgPrisma();
   const membership = await prisma.organizationMembership.findUnique({
     where: { userId_organizationId: { userId, organizationId } },
@@ -40,12 +47,12 @@ export async function getMembershipOr403(
   });
 
   if (!membership) {
-    return { data: null, error: err('Organization not found', 404) } as const;
+    return err('Organization not found', 404);
   }
   if (!roleAtLeast(membership.role, minimumRole)) {
-    return { data: null, error: err('Forbidden', 403) } as const;
+    return err('Forbidden', 403);
   }
-  return { data: membership, error: null } as const;
+  return membership;
 }
 
 export async function countOwners(organizationId: string): Promise<number> {

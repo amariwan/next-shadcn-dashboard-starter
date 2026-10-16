@@ -11,15 +11,13 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(
-    id,
-    session.user.id,
-    'admin'
-  );
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const prisma = getOrgPrisma();
   const invitations = await prisma.organizationInvitation.findMany({
@@ -42,15 +40,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function POST(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(
-    id,
-    session.user.id,
-    'admin'
-  );
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const body = await request.json().catch(() => null);
   const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
@@ -123,15 +119,13 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(
-    id,
-    session.user.id,
-    'admin'
-  );
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const invitationId = request.nextUrl.searchParams.get('invitationId');
   if (!invitationId) return err('invitationId is required');

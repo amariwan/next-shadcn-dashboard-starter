@@ -7,8 +7,7 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
-    // Adds request headers and IP for users, for more info visit
-    sendDefaultPii: true,
+    // Note: the sendDefaultPii option was removed in Sentry v11.
 
     // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
     tracesSampleRate: 1,

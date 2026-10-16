@@ -4,8 +4,9 @@ import { getSessionOr401, err } from '../_lib';
 
 /** Read the currently active organization (resolved from session). */
 export async function GET() {
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   return NextResponse.json({
     activeOrgId: session.user.activeOrgId,
@@ -16,8 +17,9 @@ export async function GET() {
 
 /** Switch the active organization (must be a member). Sets a sticky cookie. */
 export async function POST(request: NextRequest) {
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   const body = await request.json().catch(() => null);
   const orgId = body?.orgId;
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
     return err('orgId is required');
   }
 
-  const member = (session.user.organizations ?? []).find((o) => o.id === orgId);
+  const member = (session.user.organizations ?? []).find((o: { id: string }) => o.id === orgId);
   if (!member) return err('Organization not found', 404);
 
   const res = NextResponse.json({ success: true, activeOrgId: orgId });

@@ -17,8 +17,9 @@ async function loadInvitation(token: string) {
 /** Validate an invite for the signed-in user. */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { token } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   const invitation = await loadInvitation(token);
   if (!invitation || invitation.acceptedAt || invitation.expiresAt.getTime() < Date.now()) {
@@ -51,8 +52,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 /** Accept an invite — the invite email must match the signed-in user. */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { token } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   const prisma = getOrgPrisma();
   const invitation = await loadInvitation(token);

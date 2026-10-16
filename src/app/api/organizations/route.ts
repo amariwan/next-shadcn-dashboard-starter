@@ -3,8 +3,9 @@ import { ACTIVE_ORG_COOKIE, getOrgPrisma, slugify } from '@/lib/auth/organizatio
 import { getSessionOr401, err } from './_lib';
 
 export async function GET() {
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   const prisma = getOrgPrisma();
   const memberships = await prisma.organizationMembership.findMany({
@@ -29,8 +30,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === 'string' ? body.name.trim() : '';

@@ -8,11 +8,13 @@ interface Params {
 
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(id, session.user.id);
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id);
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const prisma = getOrgPrisma();
   const memberCount = await prisma.organizationMembership.count({
@@ -33,15 +35,13 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(
-    id,
-    session.user.id,
-    'admin'
-  );
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id, 'admin');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const body = await request.json().catch(() => null);
   const name = typeof body?.name === 'string' ? body.name.trim() : '';
@@ -60,15 +60,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
-  const { session, error } = await getSessionOr401();
-  if (!session) return error;
+  const sessionOrError = await getSessionOr401();
+  if (sessionOrError instanceof NextResponse) return sessionOrError;
+  const session = sessionOrError;
 
-  const { data: membership, error: forbidden } = await getMembershipOr403(
-    id,
-    session.user.id,
-    'owner'
-  );
-  if (!membership) return forbidden;
+  const membershipOrError = await getMembershipOr403(id, session.user.id, 'owner');
+  if (membershipOrError instanceof NextResponse) return membershipOrError;
+  const membership = membershipOrError;
 
   const prisma = getOrgPrisma();
   await prisma.organization.delete({ where: { id } });

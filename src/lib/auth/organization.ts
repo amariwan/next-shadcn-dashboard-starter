@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
-import { resolve } from 'path';
+import path from 'path';
 
 export const ACTIVE_ORG_COOKIE = 'active-org-id';
 
@@ -17,8 +17,9 @@ export interface SessionOrganization {
 
 function getDbUrl(): string {
   const raw = process.env.DATABASE_URL || 'file:./prisma/dev.db';
-  if (raw.startsWith('file:./') || raw.startsWith('file:../')) {
-    return `file:${resolve(process.cwd(), raw.slice('file:'.length))}`;
+  // Keep the resolved path statically scoped (Turbopack build requirement).
+  if (raw === 'file:./prisma/dev.db' || raw === 'file:prisma/dev.db') {
+    return `file:${path.join(process.cwd(), 'prisma', 'dev.db')}`;
   }
   return raw;
 }

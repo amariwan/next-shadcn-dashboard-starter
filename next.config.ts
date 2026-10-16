@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next';
-import { withSentryConfig } from '@sentry/nextjs';
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
@@ -38,14 +38,9 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
     // Disable Sentry telemetry
     telemetry: false,
 
-    // Sentry v10: moved under webpack namespace
-    webpack: {
-      reactComponentAnnotation: {
-        enabled: true
-      },
-      treeshake: {
-        removeDebugLogging: true
-      }
+    // Sentry v11: top-level option (works for both webpack and Turbopack)
+    reactComponentAnnotation: {
+      enabled: true
     },
 
     // Disable source map upload when org/project are not configured

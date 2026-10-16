@@ -7,8 +7,7 @@ const sentryOptions: Sentry.NodeOptions | Sentry.EdgeOptions = {
   // Enable Spotlight in development
   spotlight: process.env.NODE_ENV === 'development',
 
-  // Adds request headers and IP for users, for more info visit
-  sendDefaultPii: true,
+  // Note: the sendDefaultPii option was removed in Sentry v11.
 
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 1,
